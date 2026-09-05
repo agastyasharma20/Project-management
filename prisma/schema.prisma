@@ -1,0 +1,661 @@
+// PIEMR Project Intelligence & Management Platform — data model.
+//
+// Portability note: the provider below is the ONLY SQLite-specific line in the
+// application. Every model uses types that map cleanly onto PostgreSQL
+// (String/Int/Float/Boolean/DateTime). Enum-like values are stored as String
+// with the allowed set owned by src/lib/domain constants, because SQLite has no
+// native enum type; switching the provider to "postgresql" therefore needs no
+// application changes. No JSON column is used for anything that is queried or
+// aggregated — JSON appears only for opaque audit/diff payloads.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  phone        String?
+  passwordHash String
+  isActive     Boolean   @default(true)
+  mustReset    Boolean   @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // A user carries N roles (HOD + FACULTY_MENTOR + JUDGE on one account).
+  roles UserRole[]
+
+  studentProfile StudentProfile?
+  facultyProfile FacultyProfile?
+
+  sessions          Session[]
+  mentoredTeams     Team[]              @relation("TeamMentor")
+  submittedMeetings Meeting[]           @relation("MeetingMentor")
+  approvals         MeetingApproval[]
+  judgeAssignments  JudgeAssignment[]
+  judgeSubmissions  JudgeSubmission[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  resourcesAdded    ProjectResource[]   @relation("ResourceAuthor")
+  timelineEvents    TimelineEvent[]     @relation("TimelineActor")
+  headedDepartments Department[]        @relation("DepartmentHod")
+
+  @@index([isActive])
+}
+
+// Role grant. `departmentId` scopes department-bound roles (HOD, FACULTY_MENTOR).
+// College-wide roles (SUPER_ADMIN, DIRECTOR, ADMIN) leave it null.
+model UserRole {
+  id           String      @id @default(cuid())
+  userId       String
+  role         String
+  departmentId String?
+  createdAt    DateTime    @default(now())
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  @@unique([userId, role, departmentId])
+  @@index([role])
+  @@index([departmentId])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+  revokedAt  DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Academic structure (all configurable — nothing hardcoded in the app)
+// ---------------------------------------------------------------------------
+
+model Department {
+  id        String   @id @default(cuid())
+  code      String   @unique // CSE, AIDS, IOT ... used in Team IDs
+  name      String
+  hodUserId String?
+  hod       User?    @relation("DepartmentHod", fields: [hodUserId], references: [id])
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections        Section[]
+  students        StudentProfile[]
+  faculty         FacultyProfile[]
+  teams           Team[]
+  roleGrants      UserRole[]
+  geofences       GeofenceConfig[]
+  presentations   Presentation[]
+  markingSchemes  MarkingScheme[]
+  teamIdSequences TeamIdSequence[]
+  settings        Setting[]
+}
+
+model Section {
+  id           String     @id @default(cuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name         String // "A", "B", "Alpha" ... not assumed
+  isActive     Boolean    @default(true)
+  sortOrder    Int        @default(0)
+
+  students StudentProfile[]
+  teams    Team[]
+
+  @@unique([departmentId, name])
+}
+
+model Semester {
+  id        String  @id @default(cuid())
+  number    Int     @unique // 1..8
+  label     String
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  students        StudentProfile[]
+  teams           Team[]
+  academicConfigs AcademicConfiguration[]
+  presentations   Presentation[]
+}
+
+model ProjectType {
+  id       String  @id @default(cuid())
+  code     String  @unique // MINOR | MAJOR | ...
+  name     String
+  isActive Boolean @default(true)
+
+  teams           Team[]
+  academicConfigs AcademicConfiguration[]
+  presentations   Presentation[]
+  markingSchemes  MarkingScheme[]
+}
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  label     String   @unique // "2026-27"
+  startsOn  DateTime
+  endsOn    DateTime
+  isCurrent Boolean  @default(false)
+  isActive  Boolean  @default(true)
+
+  teams           Team[]
+  presentations   Presentation[]
+  teamIdSequences TeamIdSequence[]
+  academicConfigs AcademicConfiguration[]
+}
+
+// Semester -> ProjectType mapping (replaces `if (semester >= 5 && <= 6)`).
+model AcademicConfiguration {
+  id                  String       @id @default(cuid())
+  academicYearId      String
+  academicYear        AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId          String
+  semester            Semester     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  projectTypeId       String
+  projectType         ProjectType  @relation(fields: [projectTypeId], references: [id])
+  expectedMeetings    Int          @default(12)
+  meetingFrequency    String       @default("WEEKLY") // WEEKLY | BIWEEKLY | CUSTOM
+  meetingIntervalDays Int          @default(7)
+  isActive            Boolean      @default(true)
+
+  @@unique([academicYearId, semesterId])
+}
+
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+model StudentProfile {
+  id           String      @id @default(cuid())
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollmentNo String      @unique
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id])
+  sectionId    String?
+  section      Section?    @relation(fields: [sectionId], references: [id])
+  semesterId   String?
+  semester     Semester?   @relation(fields: [semesterId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  memberships TeamMember[]
+  ledTeams    Team[]       @relation("TeamLead")
+  attendance  MeetingAttendance[]
+
+  @@index([departmentId, sectionId])
+}
+
+model FacultyProfile {
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeCode String     @unique
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  designation  String?
+  maxMentees   Int        @default(12)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([departmentId])
+}
+
+// ---------------------------------------------------------------------------
+// Teams & projects
+// ---------------------------------------------------------------------------
+
+model Team {
+  id     String  @id @default(cuid())
+  teamId String? @unique // PIEMR-CSE-001, assigned on approval only
+
+  projectTitle       String
+  projectDescription String
+
+  departmentId   String
+  department     Department   @relation(fields: [departmentId], references: [id])
+  sectionId      String?
+  section        Section?     @relation(fields: [sectionId], references: [id])
+  semesterId     String
+  semester       Semester     @relation(fields: [semesterId], references: [id])
+  projectTypeId  String
+  projectType    ProjectType  @relation(fields: [projectTypeId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  mentorUserId String?
+  mentor       User?   @relation("TeamMentor", fields: [mentorUserId], references: [id])
+
+  leadStudentId String
+  leadStudent   StudentProfile @relation("TeamLead", fields: [leadStudentId], references: [id])
+
+  registrationStatus String    @default("SUBMITTED") // DRAFT|SUBMITTED|APPROVED|REJECTED
+  rejectionReason    String?
+  approvedAt         DateTime?
+  approvedByUserId   String?
+
+  status     String    @default("REGISTERED") // REGISTERED|ACTIVE|COMPLETED|ARCHIVED
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members          TeamMember[]
+  meetings         Meeting[]
+  resources        ProjectResource[]
+  presentationSlots PresentationTeam[]
+  timeline         TimelineEvent[]
+
+  @@index([departmentId, academicYearId])
+  @@index([registrationStatus])
+  @@index([status])
+  @@index([mentorUserId])
+}
+
+model TeamMember {
+  id        String         @id @default(cuid())
+  teamId    String
+  team      Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+  isLead    Boolean        @default(false)
+  joinedAt  DateTime       @default(now())
+  removedAt DateTime?
+
+  // DB-level guarantee of "a student belongs to at most one ACTIVE team":
+  // holds the studentId while the membership is active, NULL once removed.
+  activeStudentKey String? @unique
+
+  @@unique([teamId, studentId])
+  @@index([studentId])
+}
+
+model TeamIdSequence {
+  id             String       @id @default(cuid())
+  departmentId   String
+  department     Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  lastValue      Int          @default(0)
+
+  @@unique([departmentId, academicYearId])
+}
+
+// ---------------------------------------------------------------------------
+// Meetings & evidence
+// ---------------------------------------------------------------------------
+
+model Meeting {
+  id     String @id @default(cuid())
+  code   String @unique // MR-000123
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  mentorUserId String
+  mentor       User   @relation("MeetingMentor", fields: [mentorUserId], references: [id])
+
+  discussion String
+  heldAt     DateTime
+  status     String   @default("PENDING_APPROVAL") // SUBMITTED|PENDING_APPROVAL|APPROVED|REJECTED|RESUBMISSION_REQUIRED
+
+  presentCount Int @default(0)
+  memberCount  Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evidence   MeetingEvidence?
+  attendance MeetingAttendance[]
+  approvals  MeetingApproval[]
+
+  @@index([teamId, heldAt])
+  @@index([status])
+  @@index([mentorUserId])
+}
+
+// Audit artifact. Values are captured by the device at submit time and are
+// never editable afterwards (no update path exists in the service layer).
+model MeetingEvidence {
+  id        String  @id @default(cuid())
+  meetingId String  @unique
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  originalKey String // storage key of the untouched capture
+  stampedKey  String // storage key of the server-watermarked evidence
+  mimeType    String @default("image/jpeg")
+  bytes       Int    @default(0)
+
+  latitude     Float
+  longitude    Float
+  accuracyM    Float
+  address      String?
+  capturedAt   DateTime // device clock at capture
+  receivedAt   DateTime @default(now()) // trusted server clock
+  distanceM    Float // haversine distance from the campus anchor
+  radiusM      Float // geofence radius in force at submit time
+  geofenceOk   Boolean
+  accuracyBand String // GOOD | WARNING | POOR
+  deviceInfo   String?
+
+  createdAt DateTime @default(now())
+}
+
+// Immutable per-meeting snapshot: the student's name/enrollment are copied so
+// later profile edits cannot rewrite historical attendance records.
+model MeetingAttendance {
+  id            String         @id @default(cuid())
+  meetingId     String
+  meeting       Meeting        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       StudentProfile @relation(fields: [studentId], references: [id])
+  present       Boolean
+  nameSnapshot  String
+  enrollSnapshot String
+
+  @@unique([meetingId, studentId])
+  @@index([studentId])
+}
+
+model MeetingApproval {
+  id          String   @id @default(cuid())
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  actorUserId String
+  actor       User     @relation(fields: [actorUserId], references: [id])
+  actorRole   String
+  action      String // APPROVE | REJECT | REQUEST_RESUBMISSION
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([meetingId])
+}
+
+// ---------------------------------------------------------------------------
+// Project workspace
+// ---------------------------------------------------------------------------
+
+model ResourceCategory {
+  id        String  @id @default(cuid())
+  code      String  @unique // GITHUB | DRIVE | PRESENTATION | ...
+  name      String
+  kind      String  @default("LINK") // LINK | FILE | BOTH
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  resources ProjectResource[]
+}
+
+model ProjectResource {
+  id         String           @id @default(cuid())
+  teamId     String
+  team       Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   ResourceCategory @relation(fields: [categoryId], references: [id])
+
+  title       String
+  description String?
+  url         String?
+  fileKey     String?
+  fileName    String?
+  fileBytes   Int?
+  mimeType    String?
+
+  version       Int      @default(1)
+  addedByUserId String
+  addedBy       User     @relation("ResourceAuthor", fields: [addedByUserId], references: [id])
+  isArchived    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  versions ProjectResourceVersion[]
+
+  @@index([teamId, categoryId])
+}
+
+model ProjectResourceVersion {
+  id            String          @id @default(cuid())
+  resourceId    String
+  resource      ProjectResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  version       Int
+  title         String
+  url           String?
+  fileKey       String?
+  description   String?
+  changedByUserId String
+  createdAt     DateTime        @default(now())
+
+  @@unique([resourceId, version])
+}
+
+// ---------------------------------------------------------------------------
+// Presentations & evaluation
+// ---------------------------------------------------------------------------
+
+model MarkingScheme {
+  id            String       @id @default(cuid())
+  name          String
+  departmentId  String?
+  department    Department?  @relation(fields: [departmentId], references: [id])
+  projectTypeId String?
+  projectType   ProjectType? @relation(fields: [projectTypeId], references: [id])
+  totalMarks    Int
+  isActive      Boolean      @default(true)
+  isLocked      Boolean      @default(false) // locked once marks exist
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  criteria      MarkingCriterion[]
+  presentations Presentation[]
+
+  @@unique([name, departmentId])
+}
+
+model MarkingCriterion {
+  id          String        @id @default(cuid())
+  schemeId    String
+  scheme      MarkingScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  label       String
+  description String?
+  maxMarks    Int
+  weight      Float         @default(1)
+  sortOrder   Int           @default(0)
+
+  marks JudgeMark[]
+
+  @@index([schemeId])
+}
+
+model Presentation {
+  id             String       @id @default(cuid())
+  name           String
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  departmentId   String?
+  department     Department?  @relation(fields: [departmentId], references: [id])
+  semesterId     String?
+  semester       Semester?    @relation(fields: [semesterId], references: [id])
+  projectTypeId  String?
+  projectType    ProjectType? @relation(fields: [projectTypeId], references: [id])
+
+  schemeId String?
+  scheme   MarkingScheme? @relation(fields: [schemeId], references: [id])
+
+  scheduledOn DateTime
+  startTime   String? // "10:30"
+  endTime     String?
+  venue       String?
+
+  status         String @default("SCHEDULED") // DRAFT|SCHEDULED|IN_PROGRESS|COMPLETED|CANCELLED
+  marksVisibility String @default("DRAFT") // DRAFT|SUBMITTED|REVIEWED|PUBLISHED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teams   PresentationTeam[]
+  judges  JudgeAssignment[]
+
+  @@index([academicYearId, departmentId])
+}
+
+model PresentationTeam {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  teamId         String
+  team           Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  slotTime       String?
+  venue          String?
+  sortOrder      Int          @default(0)
+
+  submissions JudgeSubmission[]
+
+  @@unique([presentationId, teamId])
+  @@index([teamId])
+}
+
+model JudgeAssignment {
+  id             String       @id @default(cuid())
+  presentationId String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  judgeUserId    String
+  judge          User         @relation(fields: [judgeUserId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([presentationId, judgeUserId])
+  @@index([judgeUserId])
+}
+
+// One submission per (judge, team, presentation). Individual judge marks are
+// never overwritten by aggregation — averages are computed on read.
+model JudgeSubmission {
+  id                 String           @id @default(cuid())
+  presentationTeamId String
+  presentationTeam   PresentationTeam @relation(fields: [presentationTeamId], references: [id], onDelete: Cascade)
+  judgeUserId        String
+  judge              User             @relation(fields: [judgeUserId], references: [id])
+
+  status      String    @default("DRAFT") // DRAFT | SUBMITTED
+  totalMarks  Float     @default(0)
+  maxMarks    Int       @default(0)
+  remarks     String?
+  submittedAt DateTime?
+  reopenedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  marks JudgeMark[]
+
+  @@unique([presentationTeamId, judgeUserId])
+  @@index([judgeUserId])
+}
+
+model JudgeMark {
+  id           String           @id @default(cuid())
+  submissionId String
+  submission   JudgeSubmission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  criterionId  String
+  criterion    MarkingCriterion @relation(fields: [criterionId], references: [id])
+  value        Float
+
+  @@unique([submissionId, criterionId])
+}
+
+// ---------------------------------------------------------------------------
+// Platform services
+// ---------------------------------------------------------------------------
+
+model TimelineEvent {
+  id          String   @id @default(cuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  kind        String // REGISTERED|APPROVED|MEETING|PRESENTATION|RESOURCE|STATUS|MENTOR_CHANGE
+  title       String
+  detail      String?
+  occurredAt  DateTime @default(now())
+  actorUserId String?
+  actor       User?    @relation("TimelineActor", fields: [actorUserId], references: [id])
+
+  @@index([teamId, occurredAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  actorRole   String?
+  action      String
+  entity      String
+  entityId    String?
+  summary     String
+  beforeJson  String?
+  afterJson   String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// Key/value configuration. `departmentId` null = college-wide default,
+// non-null = department override.
+model Setting {
+  id           String      @id @default(cuid())
+  key          String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  value        String // JSON-encoded
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([key, departmentId])
+}
+
+model GeofenceConfig {
+  id           String      @id @default(cuid())
+  name         String
+  departmentId String?     @unique // null = college default anchor
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  latitude     Float
+  longitude    Float
+  radiusM      Float       @default(80)
+  minAccuracyM Float       @default(50)
+  goodAccuracyM Float      @default(20)
+  warnAccuracyM Float      @default(50)
+  enforce      Boolean     @default(true)
+  updatedAt    DateTime    @updatedAt
+}

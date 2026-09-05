@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+.env
+.env*.local
+npm-debug.log*
+yarn-error.log*
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Local SQLite database + generated Prisma client
+prisma/*.db
+prisma/*.db-journal
+prisma/dev.db*
+
+# Local object storage (StorageService LOCAL driver)
+storage/
+!storage/.gitkeep
