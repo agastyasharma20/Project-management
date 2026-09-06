@@ -37,7 +37,7 @@ export default async function TeamWorkspacePage({
   const principal = await requirePrincipal();
   const { id } = await params;
   const sp = await searchParams;
-  const tab = (TABS.find((t) => t === param(sp, "tab")) ?? "overview") as Tab;
+  const rawTab = (TABS.find((t) => t === param(sp, "tab")) ?? "overview") as Tab;
 
   const team = await db.team.findFirst({
     where: { AND: [{ id }, teamScopeWhere(principal)] },
@@ -78,6 +78,8 @@ export default async function TeamWorkspacePage({
   const [metrics] = await computeTeamMetrics({ id: team.id });
   const perStudent = await studentAttendance([team.id]);
   const canManage = can(principal, "team.write") && canAccessDepartment(principal, team.departmentId);
+  const canSeeMarks = can(principal, "marks.read.all") && canAccessDepartment(principal, team.departmentId);
+  const tab = rawTab === "marks" && !canSeeMarks ? "overview" : rawTab;
 
   return (
     <>
@@ -110,7 +112,7 @@ export default async function TeamWorkspacePage({
       </div>
 
       <nav className="scroll-x mb-4 flex gap-1 border-b border-[var(--color-line)]" aria-label="Workspace sections">
-        {TABS.filter((t) => t !== "manage" || canManage).map((t) => (
+        {TABS.filter((t) => (t !== "manage" || canManage) && (t !== "marks" || canSeeMarks)).map((t) => (
           <Link
             key={t}
             href={`/teams/${team.id}?tab=${t}`}

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { db } from "@/lib/db";
 import type { Principal } from "@/lib/auth/rbac";
 import { computeTeamMetrics } from "@/lib/services/analytics";
@@ -189,9 +188,6 @@ export async function StudentDashboard({ principal }: { principal: Principal }) 
               ) : (
                 <p className="text-[var(--color-muted)]">Nothing scheduled yet.</p>
               )}
-              <Link href="/my-team/marks" className="mt-3 block text-[var(--color-brand-600)] underline">
-                View published marks
-              </Link>
             </CardBody>
           </Card>
         </div>

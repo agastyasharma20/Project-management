@@ -132,8 +132,23 @@ export function AppShell({
           />
         ) : null}
 
-        <main id="main" className="min-w-0 flex-1 px-3 py-5 sm:px-5 lg:px-6">
-          {children}
+        <main id="main" className="flex min-w-0 flex-1 flex-col px-3 py-5 sm:px-5 lg:px-6">
+          <div className="flex-1">{children}</div>
+          <p className="no-print mt-10 border-t border-[var(--color-line)] pt-4 text-center text-[11px] text-[var(--color-muted)]">
+            Designed &amp; Developed by:{" "}
+            <a href="mailto:hod_cs@piemr.edu.in" className="hover:text-[var(--color-brand-600)] hover:underline">
+              Prof. Dr. Piyush Choudhary
+            </a>{" "}
+            [Head&nbsp;–&nbsp;CSE] &amp;{" "}
+            <a
+              href="https://www.linkedin.com/in/agastya20"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[var(--color-brand-600)] hover:underline"
+            >
+              Mr. Agastya Sharma
+            </a>
+          </p>
         </main>
       </div>
     </div>

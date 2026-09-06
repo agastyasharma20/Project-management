@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { closeE2eClient, COOKIE_NAME, sessionCookieFor } from "./helpers/auth";
+import { pickApprovedTeamWithMentor } from "./helpers/data";
 
 /**
  * Proves the RBAC matrix documented in docs/ARCHITECTURE.md §3 end-to-end,
@@ -174,5 +175,44 @@ test.describe("global search results respect the caller's scope", () => {
   test("an unauthenticated search request is rejected", async ({ page }) => {
     const response = await page.request.get("/api/search?q=PIEMR");
     expect(response.status()).toBe(401);
+  });
+});
+
+test.describe("presentation marks are hidden from students and faculty mentors", () => {
+  test("the team workspace never shows a Marks tab to the mentor of that team", async ({ page, context }) => {
+    const { teamId, mentorEmail } = await pickApprovedTeamWithMentor();
+    const cookie = await sessionCookieFor(mentorEmail);
+    await context.addCookies([{ name: COOKIE_NAME, value: cookie, domain: "localhost", path: "/" }]);
+
+    await page.goto(`/teams/${teamId}`);
+    await expect(page.getByRole("link", { name: "Marks", exact: true })).toHaveCount(0);
+  });
+
+  test("navigating straight to ?tab=marks does not reveal marks content to the mentor", async ({ page, context }) => {
+    const { teamId, mentorEmail } = await pickApprovedTeamWithMentor();
+    const cookie = await sessionCookieFor(mentorEmail);
+    await context.addCookies([{ name: COOKIE_NAME, value: cookie, domain: "localhost", path: "/" }]);
+
+    await page.goto(`/teams/${teamId}?tab=marks`);
+    // Silently falls back to the overview tab rather than exposing marks.
+    await expect(page.getByText("Judge's original submission").or(page.getByText("No evaluations recorded"))).toHaveCount(0);
+  });
+
+  test("the team workspace never shows a Marks tab to a team member (student)", async ({ page, context }) => {
+    const { teamId, memberEmail } = await pickApprovedTeamWithMentor();
+    const cookie = await sessionCookieFor(memberEmail);
+    await context.addCookies([{ name: COOKIE_NAME, value: cookie, domain: "localhost", path: "/" }]);
+
+    await page.goto(`/teams/${teamId}`);
+    await expect(page.getByRole("link", { name: "Marks", exact: true })).toHaveCount(0);
+  });
+
+  test("a Super Admin (marks.read.all) does see the Marks tab", async ({ page, context }) => {
+    const { teamId } = await pickApprovedTeamWithMentor();
+    const cookie = await sessionCookieFor(ROLE_EMAILS.superAdmin);
+    await context.addCookies([{ name: COOKIE_NAME, value: cookie, domain: "localhost", path: "/" }]);
+
+    await page.goto(`/teams/${teamId}`);
+    await expect(page.getByRole("link", { name: "Marks", exact: true })).toBeVisible();
   });
 });

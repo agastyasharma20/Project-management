@@ -48,7 +48,6 @@ export const PERMISSIONS = [
   "judge.manage",
   "scheme.write",
   "marks.read.all",
-  "marks.read.own",
   "marks.enter",
   "marks.publish",
 
@@ -167,8 +166,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "resource.read",
     "resource.write",
     "presentation.read",
-    "marks.read.own",
     "notification.read",
+    // Deliberately no marks.read.own: presentation marks are visible only to
+    // HOD/Admin/Director/Super Admin — not to students or faculty mentors.
   ],
 };
 

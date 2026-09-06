@@ -20,13 +20,43 @@ Prisma → SQLite (PostgreSQL-ready) · sharp · ExcelJS · Recharts.
 ```bash
 npm install
 cp .env.example .env          # set AUTH_SECRET before any real deployment
-npm run db:push               # create the SQLite schema
-npm run db:seed               # demo data: 10 departments, 118 teams, 670 meetings
+npx prisma generate
+npx prisma db push            # create the SQLite schema
+```
+
+Then pick **one** of the two paths below — never both on the same database.
+
+### Real deployment (recommended) — no fake data
+
+Creates only the real structural configuration (departments, semesters,
+project types, the current academic year, resource categories) and exactly
+one real Super Admin account. No demo people, no demo teams.
+
+```bash
+ADMIN_NAME="Prof. Dr. Piyush Choudhary" \
+ADMIN_EMAIL="hod_cs@piemr.edu.in" \
+ADMIN_PASSWORD="a-strong-password" \
+npm run db:init
+
 npm run dev                   # http://localhost:3000
 ```
 
-Seeded accounts all use the password in `SEED_PASSWORD` (default `Piemr@2026`)
-and the `@seed.piemr.edu.in` domain, so demo data is never mistaken for real:
+Sign in as that Super Admin, then add your college's real faculty and
+students under **Users**, adjust department/semester/geofence rules under
+**Configuration**, and have team leads register their real projects at
+`/register`. That's the whole onboarding path — no other script is needed.
+
+### Demo / local development — fake, clearly-marked data
+
+For trying out the UI or running it locally against something already
+populated: 10 departments, ~450 fake users, 118 fake teams, 670 fake
+meetings. Every seeded name, email (`@seed.piemr.edu.in`) and project title
+(`[Demo] ...`) is unmistakably not real.
+
+```bash
+npm run db:seed
+npm run dev
+```
 
 | Role | Email |
 | --- | --- |
@@ -37,7 +67,17 @@ and the `@seed.piemr.edu.in` domain, so demo data is never mistaken for real:
 | Faculty mentor / judge | `faculty1.cse@seed.piemr.edu.in` |
 | Student | `student1@seed.piemr.edu.in` |
 
-Useful scripts: `npm run typecheck`, `npm run build`, `npm run db:reset`.
+All seeded accounts share the password in `SEED_PASSWORD` (default
+`Piemr@2026`).
+
+**Switching from demo data to a real deployment:** stop the dev server,
+delete `prisma/dev.db`, run `npx prisma db push` again, then run `db:init`
+(above) instead of `db:seed`. There is no in-place "wipe" — a fresh database
+file is the clean, unambiguous way to leave demo data behind entirely.
+
+Useful scripts: `npm run typecheck`, `npm run build`, `npm run db:reset`
+(rebuilds the schema and *re-seeds demo data* — dev-only, never run against a
+real deployment's database).
 
 ## Testing
 
@@ -81,7 +121,10 @@ documented manual QA checklist instead (real camera capture).
   college level, from immutable per-meeting snapshots.
 - **Presentations** with configurable events, judges created as a capability on
   existing faculty accounts, dynamic marking schemes, multiple judges per team
-  with every submission preserved, and controlled marks release.
+  with every submission preserved, and controlled marks release. Marks are an
+  institutional record: visible only to HOD/Admin/Director/Super Admin —
+  never to students or faculty mentors, and judges can only enter marks, not
+  read them back.
 - **Project intelligence**: a configurable weighted health score and a
   transparent rules-based risk engine (no ML is used or claimed), with drill-down
   from college to student and CSV/Excel exports.
@@ -90,6 +133,15 @@ documented manual QA checklist instead (real camera capture).
 
 Full architecture, ER model, RBAC matrix, screen map and known limitations:
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Public homepage
+
+`/` is a real, public marketing page (no sign-in required) explaining what
+the platform is, its core capabilities and the roles it serves, with a subtle
+animated backdrop on the hero and login screens (`prefers-reduced-motion`
+disables it). Authenticated visitors see a "Go to Dashboard" link instead of
+sign-in/register CTAs. Every public page carries a footer crediting its
+authors.
 
 ## One deliberate access decision
 

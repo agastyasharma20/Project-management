@@ -52,7 +52,8 @@ const GROUPS: NavGroup[] = [
       { label: "Judges", href: "/judges", requires: ["judge.manage"] },
       { label: "Evaluate", href: "/judge", requires: ["marks.enter"] },
       { label: "Results", href: "/presentations/results", requires: ["marks.read.all"] },
-      { label: "My Marks", href: "/my-team/marks", requires: ["marks.read.own"] },
+      // No student/faculty-facing marks link: presentation marks are visible
+      // only to HOD/Admin/Director/Super Admin.
     ],
   },
   {

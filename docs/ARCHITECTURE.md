@@ -127,7 +127,7 @@ and the services all read the same matrix; the server check is authoritative.
 | Judges — create / assign | ✓ | ✓ | ✓ | ✓ (dept) | – | – | – |
 | Marking schemes | ✓ | ✓ | ✓ | ✓ | – | – | – |
 | Marks — enter | ✓ | ✓ | ✓ | – | – | ✓ | – |
-| Marks — read all | ✓ | ✓ | ✓ | ✓ (dept) | – | own only | published only |
+| Marks — read all | ✓ | ✓ | ✓ | ✓ (dept) | – ³ | – ³ | – ³ |
 | Marks — publish | ✓ | ✓ | ✓ | ✓ (dept) | – | – | – |
 | Analytics | college | college | college | dept | mentees | – | – |
 | Reports | ✓ | ✓ | ✓ | ✓ (dept) | ✓ (mentees) | – | – |
@@ -145,6 +145,15 @@ exposed to `SUPER_ADMIN`. Audit *entries continue to be written* for every
 Super Admin action; only the read surface is withheld, so institutional
 oversight sits with the Director, Admin and HOD rather than the platform
 operator. This is enforced in `ROLE_PERMISSIONS` and reflected in the sidebar.
+
+³ **Deliberate deployment decision:** presentation marks are visible only to
+HOD/Admin/Director/Super Admin. Faculty mentors and students never see
+scores — not on the team workspace, not on the dashboard, not via
+notification. Judges can only *enter* marks (`marks.enter`), never read
+another judge's submission or the aggregate. Enforced in `ROLE_PERMISSIONS`
+(`STUDENT` and `FACULTY_MENTOR` hold no `marks.read.*` permission) and at the
+team workspace's Marks tab, which is hidden — and its content blocked even by
+direct URL — for anyone without `marks.read.all`.
 
 **Scope resolution** (`departmentScope`, `teamScopeWhere`): college-wide roles
 get an unrestricted `where`; an HOD is limited to `departmentId IN (their

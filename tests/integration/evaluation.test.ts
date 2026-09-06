@@ -268,26 +268,32 @@ describe("evaluation service", () => {
   });
 
   describe("setMarksVisibility", () => {
-    it("only a permitted role can change visibility, and publishing notifies team members", async () => {
+    it("only a permitted role can change visibility", async () => {
       const scheme = await makeScheme();
       const judge = await makeJudge();
-      const { presentation, team } = await makePresentationWithTeam(scheme, [judge]);
+      const { presentation } = await makePresentationWithTeam(scheme, [judge]);
 
       await expect(setMarksVisibility(judge, presentation.id, "PUBLISHED")).rejects.toThrow(AuthorizationError);
 
       const admin = await makeUser({ roles: [{ role: "ADMIN" }] });
-      const member = await db.teamMember.findFirstOrThrow({ where: { teamId: team.id } });
-      const before = await db.notification.count({
-        where: { userId: (await db.studentProfile.findUniqueOrThrow({ where: { id: member.studentId } })).userId },
-      });
-
       const updated = await setMarksVisibility(admin, presentation.id, "PUBLISHED");
       expect(updated.marksVisibility).toBe("PUBLISHED");
+    });
 
-      const after = await db.notification.count({
-        where: { userId: (await db.studentProfile.findUniqueOrThrow({ where: { id: member.studentId } })).userId },
-      });
-      expect(after).toBe(before + 1);
+    it("never notifies students or faculty mentors when marks are published — marks are an internal record", async () => {
+      const scheme = await makeScheme();
+      const judge = await makeJudge();
+      const { presentation, team } = await makePresentationWithTeam(scheme, [judge]);
+      const admin = await makeUser({ roles: [{ role: "ADMIN" }] });
+
+      const member = await db.teamMember.findFirstOrThrow({ where: { teamId: team.id } });
+      const studentUserId = (await db.studentProfile.findUniqueOrThrow({ where: { id: member.studentId } })).userId;
+      const before = await db.notification.count({ where: { userId: studentUserId } });
+
+      await setMarksVisibility(admin, presentation.id, "PUBLISHED");
+
+      const after = await db.notification.count({ where: { userId: studentUserId } });
+      expect(after).toBe(before);
     });
   });
 });

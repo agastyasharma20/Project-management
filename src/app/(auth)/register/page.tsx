@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
+import { SiteFooter } from "@/components/site-footer";
 import { RegisterTeamForm } from "./register-form";
 
 export const metadata = { title: "Register your team" };
@@ -27,26 +28,29 @@ export default async function RegisterPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <PageHeader
-        breadcrumb={
-          <Link href="/login" className="hover:underline">
-            Sign in
-          </Link>
-        }
-        title="Register your project team"
-        description="Only the team lead registers. A Team ID is issued after your mentor or HOD approves."
-      />
+    <div className="flex min-h-dvh flex-col">
+      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+        <PageHeader
+          breadcrumb={
+            <Link href="/login" className="hover:underline">
+              Sign in
+            </Link>
+          }
+          title="Register your project team"
+          description="Only the team lead registers. A Team ID is issued after your mentor or HOD approves."
+        />
 
-      <RegisterTeamForm
-        departments={departments.map((d) => ({ value: d.id, label: `${d.code} — ${d.name}` }))}
-        sections={sections.map((s) => ({ value: s.id, label: s.name, departmentId: s.departmentId }))}
-        semesters={semesters.map((s) => ({ value: s.id, label: `Semester ${s.number}` }))}
-        types={types.map((t) => ({ value: t.id, label: t.name }))}
-        years={years.map((y) => ({ value: y.id, label: y.label, isCurrent: y.isCurrent }))}
-        mentors={mentors.map((m) => ({ value: m.user.id, label: m.user.name, departmentId: m.department.id }))}
-        academicConfigs={academicConfigs}
-      />
+        <RegisterTeamForm
+          departments={departments.map((d) => ({ value: d.id, label: `${d.code} — ${d.name}` }))}
+          sections={sections.map((s) => ({ value: s.id, label: s.name, departmentId: s.departmentId }))}
+          semesters={semesters.map((s) => ({ value: s.id, label: `Semester ${s.number}` }))}
+          types={types.map((t) => ({ value: t.id, label: t.name }))}
+          years={years.map((y) => ({ value: y.id, label: y.label, isCurrent: y.isCurrent }))}
+          mentors={mentors.map((m) => ({ value: m.user.id, label: m.user.name, departmentId: m.department.id }))}
+          academicConfigs={academicConfigs}
+        />
+      </div>
+      <SiteFooter />
     </div>
   );
 }

@@ -71,6 +71,19 @@ describe("ROLE_PERMISSIONS", () => {
     expect(studentPerms.has("team.approve")).toBe(false);
     expect(studentPerms.has("meeting.record")).toBe(false);
   });
+
+  it("withholds presentation marks from STUDENT and FACULTY_MENTOR entirely (institutional-record decision)", () => {
+    // Pinned so a future change can't quietly restore student/faculty mark
+    // visibility — see docs/ARCHITECTURE.md §3, footnote 3.
+    const marksReaders = Object.entries(ROLE_PERMISSIONS)
+      .filter(([, perms]) => perms.includes("marks.read.all"))
+      .map(([role]) => role);
+    expect(marksReaders.sort()).toEqual(["ADMIN", "DIRECTOR", "HOD", "SUPER_ADMIN"].sort());
+    expect(ROLE_PERMISSIONS.STUDENT.some((p) => p.startsWith("marks.read"))).toBe(false);
+    expect(ROLE_PERMISSIONS.FACULTY_MENTOR.some((p) => p.startsWith("marks.read"))).toBe(false);
+    // Judges may only enter marks, never read them back.
+    expect(ROLE_PERMISSIONS.JUDGE.some((p) => p.startsWith("marks.read"))).toBe(false);
+  });
 });
 
 describe("permissionsFor / can / canAny", () => {

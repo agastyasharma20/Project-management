@@ -30,15 +30,16 @@ function unpack(raw: string): string | null {
 export async function createSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString("hex");
   const ttlMs = env().SESSION_TTL_HOURS * 60 * 60 * 1000;
-  const hdrs = await headers();
+  // See requestMeta()'s comment: metadata capture must never block signing in.
+  const meta = await requestMeta();
 
   await db.session.create({
     data: {
       userId,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + ttlMs),
-      ipAddress: hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
-      userAgent: hdrs.get("user-agent")?.slice(0, 300) ?? null,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
     },
   });
 
@@ -125,10 +126,22 @@ export async function requirePrincipal(): Promise<Principal> {
   return principal;
 }
 
+/**
+ * IP/user-agent for audit trails and rate limiting — never load-bearing for
+ * auth itself. Wrapped defensively: in Next dev mode, a Fast Refresh reload
+ * of a Server Action module can occasionally leave `headers()` briefly unable
+ * to find its request-scope tracking (a Next.js dev-only artifact, more
+ * common on Windows file watchers); when that happens we fall back to nulls
+ * rather than let a login or any other action 500 over metadata capture.
+ */
 export async function requestMeta(): Promise<{ ip: string | null; userAgent: string | null }> {
-  const hdrs = await headers();
-  return {
-    ip: hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
-    userAgent: hdrs.get("user-agent")?.slice(0, 300) ?? null,
-  };
+  try {
+    const hdrs = await headers();
+    return {
+      ip: hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+      userAgent: hdrs.get("user-agent")?.slice(0, 300) ?? null,
+    };
+  } catch {
+    return { ip: null, userAgent: null };
+  }
 }

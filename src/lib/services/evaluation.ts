@@ -3,7 +3,6 @@ import type { Principal } from "@/lib/auth/rbac";
 import { AuthorizationError, can, isCollegeWide } from "@/lib/auth/rbac";
 import { DomainError } from "@/lib/services/teams";
 import { recordAudit } from "@/lib/services/audit";
-import { notifyMany } from "@/lib/services/notifications";
 
 /** Everything a judge is permitted to see about a team, and nothing more. */
 export async function judgeTeamView(principal: Principal, teamCode: string) {
@@ -185,23 +184,12 @@ export async function setMarksVisibility(
   if (!can(principal, "marks.publish")) throw new AuthorizationError();
   const presentation = await db.presentation.findUniqueOrThrow({ where: { id: presentationId } });
 
-  const updated = await db.$transaction(async (tx) => {
-    const result = await tx.presentation.update({
-      where: { id: presentationId },
-      data: { marksVisibility: visibility },
-    });
-    if (visibility === "PUBLISHED") {
-      const students = await tx.studentProfile.findMany({
-        where: { memberships: { some: { removedAt: null, team: { presentationSlots: { some: { presentationId } } } } } },
-        select: { userId: true },
-      });
-      await notifyMany(tx, students.map((s) => s.userId), {
-        kind: "MARKS_PUBLISHED",
-        title: `Marks published — ${presentation.name}`,
-        link: "/my-team/marks",
-      });
-    }
-    return result;
+  // No student/faculty notification: presentation marks are an internal
+  // institutional record, visible only to HOD/Admin/Director/Super Admin.
+  // "Published" finalises the evaluation for that audience, not a release.
+  const updated = await db.presentation.update({
+    where: { id: presentationId },
+    data: { marksVisibility: visibility },
   });
 
   await recordAudit(principal, {

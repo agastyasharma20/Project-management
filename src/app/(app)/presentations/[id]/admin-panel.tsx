@@ -72,7 +72,10 @@ export function PresentationAdminPanel({
       </Card>
 
       <Card>
-        <CardHeader title="Marks release" description="Students see marks only when published." />
+        <CardHeader
+          title="Marks release"
+          description="Marks are an institutional record — visible only to HOD, Admin, Director and Super Admin, never to students or faculty mentors. Publishing marks finalises the evaluation."
+        />
         <CardBody className="space-y-3">
           <Feedback state={visibilityState} />
           <form action={setVisibility} className="space-y-3">
