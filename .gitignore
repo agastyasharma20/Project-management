@@ -16,9 +16,10 @@ prisma/*.db
 prisma/*.db-journal
 prisma/dev.db*
 
-# Local object storage (StorageService LOCAL driver)
-storage/
-!storage/.gitkeep
+# Local object storage (StorageService LOCAL driver) — anchored to the repo
+# root with a leading slash so it does NOT also match src/lib/storage/.
+/storage/
+!/storage/.gitkeep
 
 # Test artifacts (throwaway databases created by the test suites)
 tests/.tmp/
