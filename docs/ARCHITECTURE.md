@@ -381,7 +381,19 @@ reopen). Marks reach students only when visibility becomes `PUBLISHED`.
 
 ---
 
-## 13. Known limitations, stated plainly
+## 13. Testing
+
+Three layers, each proving something the layer below cannot — pure logic
+unit-tested, business rules integration-tested against a real (throwaway)
+database, and RBAC/auth proven end-to-end over real HTTP with a real browser.
+136 unit/integration tests and 29 end-to-end tests, all self-contained and
+runnable with `npm test` / `npm run test:e2e`. Full strategy, what each test
+file proves, and the one thing deliberately left to manual QA (real camera
+capture) are in [`docs/TESTING.md`](TESTING.md).
+
+---
+
+## 14. Known limitations, stated plainly
 
 - **Reverse geocoding** is not wired to an external service. The stamped address
   is the configured campus anchor name when the fix is inside the fence, and is

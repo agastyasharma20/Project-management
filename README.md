@@ -39,6 +39,21 @@ and the `@seed.piemr.edu.in` domain, so demo data is never mistaken for real:
 
 Useful scripts: `npm run typecheck`, `npm run build`, `npm run db:reset`.
 
+## Testing
+
+```bash
+npm test              # 136 unit + integration tests (Vitest), own throwaway SQLite db
+npm run test:coverage # the same, with coverage
+npm run test:e2e      # 29 Playwright tests against a real dev server + seeded db
+```
+
+Both suites are fully self-contained — they provision, seed and tear down
+their own database files and never touch `dev.db`. See
+[`docs/TESTING.md`](docs/TESTING.md) for the layered strategy (unit →
+integration against a real database → end-to-end over real HTTP with a real
+browser), what each test file proves, and what's deliberately left to a
+documented manual QA checklist instead (real camera capture).
+
 ## Deployment notes
 
 - **HTTPS is required.** The camera and geolocation APIs the meeting-evidence

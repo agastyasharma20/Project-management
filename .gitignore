@@ -19,3 +19,9 @@ prisma/dev.db*
 # Local object storage (StorageService LOCAL driver)
 storage/
 !storage/.gitkeep
+
+# Test artifacts (throwaway databases created by the test suites)
+tests/.tmp/
+tests/e2e/.tmp/
+test-results/
+playwright-report/
