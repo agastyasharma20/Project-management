@@ -16,8 +16,8 @@
  * script guessing it.
  *
  * Usage:
- *   ADMIN_NAME="Prof. Dr. Piyush Choudhary" \
- *   ADMIN_EMAIL="hod_cs@piemr.edu.in" \
+ *   ADMIN_NAME="Your Name" \
+ *   ADMIN_EMAIL="you@example.edu" \
  *   ADMIN_PASSWORD="a-strong-password" \
  *   npm run db:init
  *
@@ -82,7 +82,7 @@ async function main() {
   if (!name || !email || !password) {
     console.error(
       "Set ADMIN_NAME, ADMIN_EMAIL and ADMIN_PASSWORD before running this script, e.g.:\n\n" +
-        '  ADMIN_NAME="Prof. Dr. Piyush Choudhary" ADMIN_EMAIL="hod_cs@piemr.edu.in" ' +
+        '  ADMIN_NAME="Your Name" ADMIN_EMAIL="you@example.edu" ' +
         'ADMIN_PASSWORD="a-strong-password" npm run db:init\n',
     );
     process.exitCode = 1;

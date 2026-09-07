@@ -3,6 +3,7 @@ import { getPrincipal } from "@/lib/auth/session";
 import { navigationFor } from "@/lib/navigation";
 import { unreadCount } from "@/lib/services/notifications";
 import { AppShell } from "@/components/app-shell";
+import { CompactCredit } from "@/components/site-footer";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const principal = await getPrincipal();
@@ -15,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       navigation={navigationFor(principal)}
       user={{ name: principal.name, roles: principal.roles }}
       unread={unread}
+      footer={<CompactCredit />}
     >
       {children}
     </AppShell>

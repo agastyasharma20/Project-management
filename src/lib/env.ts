@@ -12,6 +12,17 @@ const schema = z.object({
   STORAGE_LOCAL_DIR: z.string().default("./storage"),
   STORAGE_PUBLIC_BASE: z.string().default("/api/files"),
   SEED_PASSWORD: z.string().default("Piemr@2026"),
+
+  // Footer credit line — deliberately NOT hardcoded in source. Real names,
+  // titles, emails and LinkedIn URLs belong only in a deployer's own local
+  // .env (which .gitignore keeps out of version control), never committed.
+  // With none of these set, the footer shows a generic, personless line.
+  CREDIT_NAME_1: z.string().optional(),
+  CREDIT_TITLE_1: z.string().optional(),
+  CREDIT_EMAIL_1: z.string().email().optional(),
+  CREDIT_NAME_2: z.string().optional(),
+  CREDIT_EMAIL_2: z.string().email().optional(),
+  CREDIT_LINKEDIN_2: z.string().url().optional(),
 });
 
 let cached: z.infer<typeof schema> | null = null;

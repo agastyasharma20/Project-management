@@ -33,13 +33,17 @@ project types, the current academic year, resource categories) and exactly
 one real Super Admin account. No demo people, no demo teams.
 
 ```bash
-ADMIN_NAME="Prof. Dr. Piyush Choudhary" \
-ADMIN_EMAIL="hod_cs@piemr.edu.in" \
+ADMIN_NAME="Your Name" \
+ADMIN_EMAIL="you@example.edu" \
 ADMIN_PASSWORD="a-strong-password" \
 npm run db:init
 
 npm run dev                   # http://localhost:3000
 ```
+
+Use your own real name, institutional email and a strong password here — pass
+them as environment variables like this, never commit them to a file that
+gets pushed to source control.
 
 Sign in as that Super Admin, then add your college's real faculty and
 students under **Users**, adjust department/semester/geofence rules under
@@ -140,8 +144,11 @@ Full architecture, ER model, RBAC matrix, screen map and known limitations:
 the platform is, its core capabilities and the roles it serves, with a subtle
 animated backdrop on the hero and login screens (`prefers-reduced-motion`
 disables it). Authenticated visitors see a "Go to Dashboard" link instead of
-sign-in/register CTAs. Every public page carries a footer crediting its
-authors.
+sign-in/register CTAs. Every public page carries a footer, populated from
+`CREDIT_NAME_1`/`CREDIT_EMAIL_1`/`CREDIT_TITLE_1`/`CREDIT_NAME_2`/
+`CREDIT_EMAIL_2`/`CREDIT_LINKEDIN_2` in your own `.env` (never committed —
+none of these are hardcoded in source, and the footer shows a generic line
+naming no one until you set them).
 
 ## One deliberate access decision
 

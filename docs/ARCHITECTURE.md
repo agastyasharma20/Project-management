@@ -178,6 +178,20 @@ everything.
   `POST /api/auth/logout`.
 - `getPrincipal()` is `React.cache`-memoised, so a render with dozens of
   permission checks costs one query.
+- HTTP security headers (`next.config.ts`, applied to every response):
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` (no clickjacking
+  on login or marks entry), `Referrer-Policy: strict-origin-when-cross-origin`,
+  a `Permissions-Policy` that allows geolocation/camera for same-origin only
+  (the meeting-evidence workflow genuinely needs both, nothing else does),
+  and a `Content-Security-Policy` with `default-src 'self'` and
+  `frame-ancestors 'none'` — no third-party script origin is ever permitted.
+- **No personal information is hardcoded in source.** The optional footer
+  credit line (`src/components/site-footer.tsx`) reads names/titles/emails/a
+  LinkedIn URL from `CREDIT_NAME_1` / `CREDIT_TITLE_1` / `CREDIT_EMAIL_1` /
+  `CREDIT_NAME_2` / `CREDIT_EMAIL_2` / `CREDIT_LINKEDIN_2` — all optional env
+  vars, validated in `src/lib/env.ts`, and absent by default. A deployer who
+  wants a named credit sets them in their own untracked `.env`; the public
+  repository ships with none.
 
 ---
 

@@ -19,16 +19,13 @@ test.describe("homepage", () => {
     await expect(page.getByRole("link", { name: "Register your team" }).first()).toBeVisible();
   });
 
-  test("carries the required credit footer with working contact links", async ({ page }) => {
+  test("footer names no individual by default — the credit line is env-configured, never hardcoded", async ({ page }) => {
+    // No CREDIT_* env vars are set for the e2e server (tests/e2e/serve.mjs
+    // deliberately doesn't set them), so this proves the generic fallback
+    // renders and confirms nothing personal ships in source by default.
     await page.goto("/");
-    await expect(page.getByText("Prof. Dr. Piyush Choudhary")).toBeVisible();
-    await expect(page.getByText("Mr. Agastya Sharma")).toBeVisible();
-
-    const linkedin = page.getByRole("link", { name: "Mr. Agastya Sharma" });
-    await expect(linkedin).toHaveAttribute("href", "https://www.linkedin.com/in/agastya20");
-
-    await expect(page.locator('a[href="mailto:hod_cs@piemr.edu.in"]').first()).toBeVisible();
-    await expect(page.locator('a[href="mailto:work.agastya20@gmail.com"]')).toBeVisible();
+    await expect(page.getByText("Project Intelligence & Management Platform").last()).toBeVisible();
+    await expect(page.getByText("Designed & Developed by:")).toHaveCount(0);
   });
 
   test("shows 'Go to Dashboard' instead of sign-in links for an authenticated visitor", async ({ page, context }) => {
