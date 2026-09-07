@@ -63,7 +63,7 @@ describe("relativeDays", () => {
 
 describe("initials", () => {
   it("takes the first letter of up to two words", () => {
-    expect(initials("Agastya Sharma")).toBe("AS");
+    expect(initials("Jordan Lee")).toBe("JL");
     expect(initials("Madonna")).toBe("M");
     expect(initials("Dr. A B Verma")).toBe("DA");
   });
